@@ -1,0 +1,26 @@
+group 'dv'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    compile 'com.google.code.gson:gson:2.8.0'
+    compile 'org.slf4j:slf4j-api:1.7.12'
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.10.20'
+    // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-bom
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-bom', version: '1.10.20', ext: 'pom'
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    // https://mvnrepository.com/artifact/org.gaul/s3proxy
+    testCompile group: 'org.gaul', name: 's3proxy', version: '1.6.0'
+
+
+
+}
