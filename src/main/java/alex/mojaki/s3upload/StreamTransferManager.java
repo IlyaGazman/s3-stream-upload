@@ -112,6 +112,7 @@ public class StreamTransferManager {
     private final Object leftoverStreamPartLock = new Object();
     private boolean isAborting = false;
     private static final int MAX_PART_NUMBER = 10000;
+    private final ExecutorService threadPool;
 
     /**
      * Initiates a multipart upload to S3 using the first three parameters. Creates several
@@ -152,7 +153,7 @@ public class StreamTransferManager {
         this.bucketName = bucketName;
         this.putKey = putKey;
         this.s3Client = s3Client;
-        queue = new ArrayBlockingQueue<StreamPart>(queueCapacity);
+        queue = new ArrayBlockingQueue<>(queueCapacity);
 
         log.debug("Initiating multipart upload to {}/{}", bucketName, putKey);
         InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(bucketName, putKey);
@@ -161,9 +162,9 @@ public class StreamTransferManager {
         uploadId = initResponse.getUploadId();
         log.info("Initiated multipart upload to {}/{} with full ID {}", bucketName, putKey, uploadId);
         try {
-            partETags = new ArrayList<PartETag>();
-            multiPartOutputStreams = new ArrayList<MultiPartOutputStream>();
-            ExecutorService threadPool = Executors.newFixedThreadPool(numStreams);
+            partETags = new ArrayList<>();
+            multiPartOutputStreams = new ArrayList<>();
+            threadPool = Executors.newFixedThreadPool(numStreams);
 
             int partNumberStart = 1;
 
@@ -174,7 +175,7 @@ public class StreamTransferManager {
                 multiPartOutputStreams.add(multiPartOutputStream);
             }
 
-            executorServiceResultsHandler = new ExecutorServiceResultsHandler<Void>(threadPool);
+            executorServiceResultsHandler = new ExecutorServiceResultsHandler<>(threadPool);
             for (int i = 0; i < numUploadThreads; i++) {
                 executorServiceResultsHandler.submit(new UploadTask());
             }
@@ -200,6 +201,8 @@ public class StreamTransferManager {
         try {
             log.debug("{}: Waiting for pool termination", this);
             executorServiceResultsHandler.awaitCompletion();
+            threadPool.shutdown();
+
             log.debug("{}: Pool terminated", this);
             if (leftoverStreamPart != null) {
                 log.info("{}: Uploading leftover stream {}", leftoverStreamPart);

@@ -1,3 +1,5 @@
+# Upgrade
+ - Upgraded to use Gradle
 # S3 Stream Upload
 
 This library allows you to efficiently stream data to a location on AWS S3 in Java. The S3 API requires that a content

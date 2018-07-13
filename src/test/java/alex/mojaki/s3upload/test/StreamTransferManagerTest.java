@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import com.google.inject.Module;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
+import org.gaul.s3proxy.AuthenticationType;
 import org.gaul.s3proxy.S3Proxy;
 import org.gaul.s3proxy.S3ProxyConstants;
 import org.jclouds.Constants;
@@ -60,12 +61,9 @@ public class StreamTransferManagerTest {
     @Before
     public void setUp() throws Exception {
         Properties s3ProxyProperties = new Properties();
-        InputStream is = Resources.asByteSource(Resources.getResource(
-                "s3proxy.conf")).openStream();
-        try {
+        try (InputStream is = Resources.asByteSource(Resources.getResource(
+                "s3proxy.conf")).openStream()) {
             s3ProxyProperties.load(is);
-        } finally {
-            is.close();
         }
 
         String provider = s3ProxyProperties.getProperty(
@@ -107,9 +105,7 @@ public class StreamTransferManagerTest {
         S3Proxy.Builder s3ProxyBuilder = S3Proxy.builder()
                 .blobStore(blobStore)
                 .endpoint(s3Endpoint);
-        if (s3Identity != null || s3Credential != null) {
-            s3ProxyBuilder.awsAuthentication(s3Identity, s3Credential);
-        }
+        s3ProxyBuilder.awsAuthentication(AuthenticationType.AWS_V2_OR_V4, s3Identity, s3Credential);
         if (keyStorePath != null || keyStorePassword != null) {
             s3ProxyBuilder.keyStore(
                     Resources.getResource(keyStorePath).toString(),
@@ -167,28 +163,25 @@ public class StreamTransferManagerTest {
             }
         };
         final List<MultiPartOutputStream> streams = manager.getMultiPartOutputStreams();
-        List<StringBuilder> builders = new ArrayList<StringBuilder>(numStreams);
+        List<StringBuilder> builders = new ArrayList<>(numStreams);
         ExecutorService pool = Executors.newFixedThreadPool(numStreams);
         for (int i = 0; i < numStreams; i++) {
             final int streamIndex = i;
             final StringBuilder builder = new StringBuilder();
             builders.add(builder);
-            Runnable task = new Runnable() {
-                @Override
-                public void run() {
-                    MultiPartOutputStream outputStream = streams.get(streamIndex);
-                    for (int lineNum = 0; lineNum < 1000000; lineNum++) {
-                        String line = String.format("Stream %d, line %d\n", streamIndex, lineNum);
-                        outputStream.write(line.getBytes());
-                        try {
-                            outputStream.checkSize();
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        builder.append(line);
+            Runnable task = () -> {
+                MultiPartOutputStream outputStream = streams.get(streamIndex);
+                for (int lineNum = 0; lineNum < 1000000; lineNum++) {
+                    String line = String.format("Stream %d, line %d\n", streamIndex, lineNum);
+                    outputStream.write(line.getBytes());
+                    try {
+                        outputStream.checkSize();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
                     }
-                    outputStream.close();
+                    builder.append(line);
                 }
+                outputStream.close();
             };
             pool.submit(task);
         }
