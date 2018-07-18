@@ -1,16 +1,6 @@
-group 'dv'
-version '1.0-SNAPSHOT'
-
-apply plugin: 'java'
-
-sourceCompatibility = 1.8
-
-repositories {
-    mavenCentral()
-}
+version '1.0'
 
 dependencies {
-
     compile 'com.google.code.gson:gson:2.8.0'
     compile 'org.slf4j:slf4j-api:1.7.12'
     compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.10.20'
